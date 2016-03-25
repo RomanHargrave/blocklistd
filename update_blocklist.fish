@@ -92,7 +92,7 @@ begin
     # Merge lists
     info Merging (count $list_files) lists in to $merge_target
     # Create a temporary file containing the full content of the blocklist
-    set _list_tmp (mktmp)
+    set _list_tmp (mktemp)
     gzip -cd $list_files | sort -t ':' -k2 -u | sed -r '/^#/d;/^$/d' > $_list_tmp
     if [ (wc -l $_list_tmp) -gt $min_lines ] 
         info Merged lists look ok "(linecount greater than $min_lines)"
@@ -122,4 +122,5 @@ begin
     else
         info Did not replace old list - it was less than $min_lines lines
     end
+    rm $_list_tmp
 end
