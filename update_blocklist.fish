@@ -20,6 +20,7 @@ end
 
 begin
     set min_lines           100000
+    set source_min_lines    100
     set LIST_FMT            "blocklist_%s.%s"
 
     set list_store          "$package_home/blocklists"
@@ -94,7 +95,7 @@ begin
     # Create a temporary file containing the full content of the blocklist
     set _list_tmp (mktemp)
     gzip -cd $list_files | sort -t ':' -k2 -u | sed -r '/^#/d;/^$/d' > $_list_tmp
-    if [ (wc -l $_list_tmp) -gt $min_lines ] 
+    if [ (wc -l $_list_tmp | cut -d' ' -f1) -gt $min_lines ] 
         info Merged lists look ok "(linecount greater than $min_lines)"
         gzip --best - < $_list_tmp > $merge_target 
         info Making $merge_target world-readable
