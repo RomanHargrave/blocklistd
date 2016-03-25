@@ -5,6 +5,7 @@
 set package_home    (dirname (status -f))
 set __log_file      "$package_home/blocklistd.log"
 
+
 #require_logging
 . $package_home/logging.fish
 
@@ -18,6 +19,7 @@ function ibl_filter_ids -a host
 end 
 
 begin
+    set min_lines           100000
     set LIST_FMT            "blocklist_%s.%s"
 
     set list_store          "$package_home/blocklists"
@@ -87,28 +89,37 @@ begin
         end
     end
 
+    # Merge lists
     info Merging (count $list_files) lists in to $merge_target
-    gzip -cd $list_files | sort -t ':' -k2 -u | sed -r '/^#/d;/^$/d' | gzip --best - > $merge_target
-    info Making $merge_target world-readable
-    chmod a+r $merge_target
+    # Create a temporary file containing the full content of the blocklist
+    set _list_tmp (mktmp)
+    gzip -cd $list_files | sort -t ':' -k2 -u | sed -r '/^#/d;/^$/d' > $_list_tmp
+    if [ (wc -l $_list_tmp) -gt $min_lines ] 
+        info Merged lists look ok "(linecount greater than $min_lines)"
+        gzip --best - < $_list_tmp > $merge_target 
+        info Making $merge_target world-readable
+        chmod a+r $merge_target
 
-    if [ -e $latest_symlink ]
-        warn removing $latest_symlink
-        
-        if [ -L $latest_symlink ]
-            rm $latest_symlink
-        else
-            error $latest_symlink EXISTS AND IS NOT A SYMLINK. PLEASE REMOVE IT!
+        if [ -e $latest_symlink ]
+            warn removing $latest_symlink
+            
+            if [ -L $latest_symlink ]
+                rm $latest_symlink
+            else
+                error $latest_symlink EXISTS AND IS NOT A SYMLINK. PLEASE REMOVE IT!
+            end
         end
-    end
-	
-    if [ ! -e $latest_symlink ]
-        info Linking $latest_symlink to $merge_target
-        ln -s $merge_target $latest_symlink 
+        
+        if [ ! -e $latest_symlink ]
+            info Linking $latest_symlink to $merge_target
+            ln -s $merge_target $latest_symlink 
+        else
+            warn Not linking $latest_symlink because it exists
+        end
+
+
+        info Final size is (du -sch $merge_target | tail -n 1 | cut -f1)
     else
-        warn Not linking $latest_symlink because it exists
+        info Did not replace old list - it was less than $min_lines lines
     end
-
-
-    info Final size is (du -sch $merge_target | tail -n 1 | cut -f1)
 end
